@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using NRules.AgendaFilters;
 using NRules.Aggregators;
 using NRules.Extensibility;
@@ -88,25 +89,48 @@ internal class RuleExpressionCompiler : IRuleExpressionCompiler
         var activationFactMap = IndexMap.CreateMap(element.Imports, declarations);
         var factMap = IndexMap.Compose(tupleFactMap, activationFactMap);
 
+        bool isAsync = element.Expression.ReturnType == typeof(Task);
+
         var dependencyIndexMap = IndexMap.CreateMap(element.Imports, dependencies.Select(x => x.Declaration));
         if (dependencyIndexMap.HasData)
         {
-            var optimizedExpression = ExpressionOptimizer
-                .Optimize<Action<IContext, Tuple, IDependencyResolver, IResolutionContext>>(
-                    element.Expression, factMap, dependencies, dependencyIndexMap);
-            var @delegate = ExpressionCompiler.Compile(optimizedExpression);
-            var argumentMap = new ArgumentMap(factMap, element.Expression.Parameters.Count - 1);
-            var action = new RuleActionWithDependencies(element.Expression, @delegate, argumentMap, element.ActionTrigger);
-            return action;
+            if (isAsync)
+            {
+                var optimizedExpression = ExpressionOptimizer
+                    .Optimize<Func<IContext, Tuple, IDependencyResolver, IResolutionContext, Task>>(
+                        element.Expression, factMap, dependencies, dependencyIndexMap);
+                var @delegate = ExpressionCompiler.Compile(optimizedExpression);
+                var argumentMap = new ArgumentMap(factMap, element.Expression.Parameters.Count - 1);
+                return new AsyncRuleActionWithDependencies(element.Expression, @delegate, argumentMap, element.ActionTrigger);
+            }
+            else
+            {
+                var optimizedExpression = ExpressionOptimizer
+                    .Optimize<Action<IContext, Tuple, IDependencyResolver, IResolutionContext>>(
+                        element.Expression, factMap, dependencies, dependencyIndexMap);
+                var @delegate = ExpressionCompiler.Compile(optimizedExpression);
+                var argumentMap = new ArgumentMap(factMap, element.Expression.Parameters.Count - 1);
+                return new RuleActionWithDependencies(element.Expression, @delegate, argumentMap, element.ActionTrigger);
+            }
         }
         else
         {
-            var optimizedExpression = ExpressionOptimizer.Optimize<Action<IContext, Tuple>>(
-                element.Expression, 1, factMap, tupleInput: true, factInput: false);
-            var @delegate = ExpressionCompiler.Compile(optimizedExpression);
-            var argumentMap = new ArgumentMap(factMap, element.Expression.Parameters.Count - 1);
-            var action = new RuleAction(element.Expression, @delegate, argumentMap, element.ActionTrigger);
-            return action;
+            if (isAsync)
+            {
+                var optimizedExpression = ExpressionOptimizer.Optimize<Func<IContext, Tuple, Task>>(
+                    element.Expression, 1, factMap, tupleInput: true, factInput: false);
+                var @delegate = ExpressionCompiler.Compile(optimizedExpression);
+                var argumentMap = new ArgumentMap(factMap, element.Expression.Parameters.Count - 1);
+                return new AsyncRuleAction(element.Expression, @delegate, argumentMap, element.ActionTrigger);
+            }
+            else
+            {
+                var optimizedExpression = ExpressionOptimizer.Optimize<Action<IContext, Tuple>>(
+                    element.Expression, 1, factMap, tupleInput: true, factInput: false);
+                var @delegate = ExpressionCompiler.Compile(optimizedExpression);
+                var argumentMap = new ArgumentMap(factMap, element.Expression.Parameters.Count - 1);
+                return new RuleAction(element.Expression, @delegate, argumentMap, element.ActionTrigger);
+            }
         }
     }
     

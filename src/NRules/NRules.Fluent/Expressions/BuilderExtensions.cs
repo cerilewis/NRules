@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using NRules.RuleModel;
 using NRules.RuleModel.Builders;
 
@@ -39,6 +40,13 @@ internal static class BuilderExtensions
         var rewriter = new ExpressionRewriter(symbolLookup);
         var rewrittenAction = rewriter.Rewrite(action);
         builder.Action(rewrittenAction, actionTrigger);
+    }
+
+    public static void DslActionAsync(this ActionGroupBuilder builder, ISymbolLookup symbolLookup, Expression<Func<IContext, Task>> action, ActionTrigger actionTrigger)
+    {
+        var rewriter = new ExpressionRewriter(symbolLookup);
+        var rewrittenAction = rewriter.Rewrite(action);
+        builder.ActionAsync(rewrittenAction, actionTrigger);
     }
 
     public static LambdaExpression DslPatternExpression(this PatternBuilder builder, ISymbolLookup symbolLookup, LambdaExpression expression)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using NRules.Diagnostics;
 using NRules.Extensibility;
 using NRules.Rete;
@@ -59,6 +60,12 @@ public interface ISession : ISessionSchemaProvider
     /// If provided, invocation of rule actions is delegated to the interceptor.
     /// </summary>
     IActionInterceptor? ActionInterceptor { get; set; }
+    
+    /// <summary>
+    /// Async action interceptor for the current rules session.
+    /// If provided, invocation of async rule actions is delegated to the interceptor.
+    /// </summary>
+    IAsyncActionInterceptor? AsyncActionInterceptor { get; set; }
 
     /// <summary>
     /// Inserts new facts to the rules engine memory.
@@ -258,6 +265,39 @@ public interface ISession : ISessionSchemaProvider
     int Fire(int maxRulesNumber, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Starts rules execution cycle asynchronously.
+    /// This method returns a task that completes when there are no more rules to fire.
+    /// </summary>
+    /// <returns>Number of rules that fired.</returns>
+    Task<int> FireAsync();
+
+    /// <summary>
+    /// Starts rules execution cycle asynchronously.
+    /// This method returns a task that completes when there are no more rules to fire or cancellation is requested.
+    /// </summary>
+    /// <param name="cancellationToken">Enables cooperative cancellation of the rules execution cycle.</param>
+    /// <returns>Number of rules that fired.</returns>
+    Task<int> FireAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Starts rules execution cycle asynchronously.
+    /// This method returns a task that completes when the maximum number of rules fired or there are no more rules to fire.
+    /// </summary>
+    /// <param name="maxRulesNumber">Maximum number of rules to fire.</param>
+    /// <returns>Number of rules that fired.</returns>
+    Task<int> FireAsync(int maxRulesNumber);
+
+    /// <summary>
+    /// Starts rules execution cycle asynchronously.
+    /// This method returns a task that completes when the maximum number of rules fired, cancellation is requested,
+    /// or there are no more rules to fire.
+    /// </summary>
+    /// <param name="maxRulesNumber">Maximum number of rules to fire.</param>
+    /// <param name="cancellationToken">Enables cooperative cancellation of the rules execution cycle.</param>
+    /// <returns>Number of rules that fired.</returns>
+    Task<int> FireAsync(int maxRulesNumber, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Creates a LINQ query to retrieve facts of a given type from the rules engine's memory.
     /// </summary>
     /// <typeparam name="TFact">Type of facts to query. Use <see cref="object"/> to query all facts.</typeparam>
@@ -319,6 +359,7 @@ internal sealed class Session : ISessionInternal
     public IMetricsProvider Metrics => _metricsAggregator;
     public IDependencyResolver DependencyResolver { get; set; }
     public IActionInterceptor? ActionInterceptor { get; set; }
+    public IAsyncActionInterceptor? AsyncActionInterceptor { get; set; }
 
     IAgendaInternal ISessionInternal.Agenda => _agenda;
 
@@ -680,6 +721,44 @@ internal sealed class Session : ISessionInternal
             try
             {
                 _actionExecutor.Execute(_executionContext, actionContext);
+            }
+            finally
+            {
+                ruleFiredCount++;
+                if (AutoPropagateLinkedFacts) PropagateLinked();
+            }
+
+            if (actionContext.IsHalted || cancellationToken.IsCancellationRequested) break;
+        }
+        return ruleFiredCount;
+    }
+
+    public Task<int> FireAsync()
+    {
+        return FireAsync(CancellationToken.None);
+    }
+
+    public Task<int> FireAsync(CancellationToken cancellationToken)
+    {
+        return FireAsync(Int32.MaxValue, cancellationToken);
+    }
+
+    public Task<int> FireAsync(int maxRulesNumber)
+    {
+        return FireAsync(maxRulesNumber, CancellationToken.None);
+    }
+
+    public async Task<int> FireAsync(int maxRulesNumber, CancellationToken cancellationToken)
+    {
+        int ruleFiredCount = 0;
+        while (!_agenda.IsEmpty && ruleFiredCount < maxRulesNumber)
+        {
+            Activation activation = _agenda.Pop();
+            IActionContext actionContext = new ActionContext(this, activation, cancellationToken);
+
+            try
+            {
+                await _actionExecutor.ExecuteAsync(_executionContext, actionContext);
             }
             finally
             {

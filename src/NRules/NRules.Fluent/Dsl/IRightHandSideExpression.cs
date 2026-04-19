@@ -1,5 +1,6 @@
 using System;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using NRules.RuleModel;
 
 namespace NRules.Fluent.Dsl;
@@ -32,6 +33,24 @@ public interface IRightHandSideExpression
     /// <param name="action">Action expression.</param>
     /// <returns>Right hand side expression builder.</returns>
     IRightHandSideExpression Undo(Expression<Action<IContext>> action);
+
+    /// <summary>
+    /// Defines an asynchronous rule action that engine executes for a given trigger.
+    /// Use <c>ISession.FireAsync()</c> to run rules that contain async actions.
+    /// </summary>
+    /// <param name="action">Async action expression returning <see cref="Task"/>.</param>
+    /// <param name="actionTrigger">Events that should trigger this action.</param>
+    /// <returns>Right hand side expression builder.</returns>
+    IRightHandSideExpression ActionAsync(Expression<Func<IContext, Task>> action, ActionTrigger actionTrigger);
+
+    /// <summary>
+    /// Defines an asynchronous rule action that engine executes when the rule fires
+    /// due to the initial rule match or due to an update.
+    /// Use <c>ISession.FireAsync()</c> to run rules that contain async actions.
+    /// </summary>
+    /// <param name="action">Async action expression returning <see cref="Task"/>.</param>
+    /// <returns>Right hand side expression builder.</returns>
+    IRightHandSideExpression DoAsync(Expression<Func<IContext, Task>> action);
 
     /// <summary>
     /// Defines rule's action that yields a linked fact when the rule fires.

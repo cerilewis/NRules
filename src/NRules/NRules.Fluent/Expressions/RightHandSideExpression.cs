@@ -1,6 +1,7 @@
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading.Tasks;
 using NRules.Fluent.Dsl;
 using NRules.RuleModel;
 using NRules.RuleModel.Builders;
@@ -29,6 +30,17 @@ internal class RightHandSideExpression(ActionGroupBuilder builder, SymbolStack s
     public IRightHandSideExpression Undo(Expression<Action<IContext>> action)
     {
         return Action(action, ActionTrigger.Deactivated);
+    }
+
+    public IRightHandSideExpression ActionAsync(Expression<Func<IContext, Task>> action, ActionTrigger actionTrigger)
+    {
+        builder.DslActionAsync(symbolStack.Scope, action, actionTrigger);
+        return this;
+    }
+
+    public IRightHandSideExpression DoAsync(Expression<Func<IContext, Task>> action)
+    {
+        return ActionAsync(action, ActionTrigger.Activated | ActionTrigger.Reactivated);
     }
 
     public IRightHandSideExpression Yield<TFact>(Expression<Func<IContext, TFact>> yield)

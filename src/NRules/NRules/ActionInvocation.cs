@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using NRules.Extensibility;
 using NRules.RuleModel;
 
@@ -15,5 +16,10 @@ internal class ActionInvocation(IExecutionContext executionContext, IActionConte
     public void Invoke()
     {
         action.Invoke(executionContext, actionContext);
+    }
+
+    public Task InvokeAsync()
+    {
+        return action.InvokeAsync(executionContext, actionContext);
     }
 }

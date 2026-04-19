@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NRules.RuleModel;
 using NRules.Utilities;
 
@@ -8,6 +9,7 @@ namespace NRules;
 internal interface IActionExecutor
 {
     void Execute(IExecutionContext executionContext, IActionContext actionContext);
+    Task ExecuteAsync(IExecutionContext executionContext, IActionContext actionContext);
 }
 
 internal class ActionExecutor : IActionExecutor
@@ -32,6 +34,40 @@ internal class ActionExecutor : IActionExecutor
                 try
                 {
                     invocation.Invoke();
+                }
+                catch (Exception e)
+                {
+                    throw new RuleRhsExpressionEvaluationException("Failed to evaluate rule action",
+                        actionContext.Rule.Name, invocation.Expression.ToString(), e);
+                }
+            }
+        }
+        executionContext.EventAggregator.RaiseRuleFired(session, activation);
+    }
+
+    public async Task ExecuteAsync(IExecutionContext executionContext, IActionContext actionContext)
+    {
+        ISession session = executionContext.Session;
+        Activation activation = actionContext.Activation;
+
+        var invocations = CreateInvocations(executionContext, actionContext);
+
+        executionContext.EventAggregator.RaiseRuleFiring(session, activation);
+        if (session.AsyncActionInterceptor is {} asyncInterceptor)
+        {
+            await asyncInterceptor.InterceptAsync(actionContext, invocations);
+        }
+        else if (session.ActionInterceptor is {} interceptor)
+        {
+            interceptor.Intercept(actionContext, invocations);
+        }
+        else
+        {
+            foreach (var invocation in invocations)
+            {
+                try
+                {
+                    await invocation.InvokeAsync();
                 }
                 catch (Exception e)
                 {
