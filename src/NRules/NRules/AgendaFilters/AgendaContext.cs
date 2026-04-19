@@ -7,7 +7,7 @@ namespace NRules.AgendaFilters;
 /// </summary>
 public class AgendaContext
 {
-    internal ISessionInternal Session { get; }
+    internal ISessionInternalBase Session { get; }
     internal IEventAggregator EventAggregator { get; }
 
     internal AgendaContext(IExecutionContext context)

@@ -8,7 +8,7 @@ namespace NRules.Extensibility;
 /// Extension point for asynchronous rule action interception.
 /// Implement both <see cref="IActionInterceptor"/> and <see cref="IAsyncActionInterceptor"/> on the same class
 /// to support both synchronous (<see cref="ISession.Fire()"/>) and asynchronous
-/// (<see cref="ISession.FireAsync()"/>) rule execution.
+/// (<see cref="IAsyncSession.FireAsync()"/>) rule execution.
 /// </summary>
 /// <remarks>
 /// When async actions are invoked via <c>IAsyncActionInterceptor</c>, exceptions thrown by actions

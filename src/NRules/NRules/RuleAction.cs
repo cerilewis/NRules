@@ -12,7 +12,6 @@ internal interface IRuleAction
 {
     Expression Expression { get; }
     ActionTrigger Trigger { get; }
-    bool IsAsync { get; }
     object?[] GetArguments(IActionContext actionContext);
     void Invoke(IExecutionContext executionContext, IActionContext actionContext);
     Task InvokeAsync(IExecutionContext executionContext, IActionContext actionContext);
@@ -27,7 +26,6 @@ internal class RuleAction(
 {
     public Expression Expression => expression;
     public ActionTrigger Trigger { get; } = actionTrigger;
-    public bool IsAsync => false;
 
     public object?[] GetArguments(IActionContext actionContext)
     {
@@ -78,7 +76,6 @@ internal class RuleActionWithDependencies(
 {
     public Expression Expression => expression;
     public ActionTrigger Trigger { get; } = actionTrigger;
-    public bool IsAsync => false;
 
     public object?[] GetArguments(IActionContext actionContext)
     {
@@ -133,7 +130,6 @@ internal class AsyncRuleAction(
 {
     public Expression Expression => expression;
     public ActionTrigger Trigger { get; } = actionTrigger;
-    public bool IsAsync => true;
 
     public object?[] GetArguments(IActionContext actionContext)
     {
@@ -183,7 +179,6 @@ internal class AsyncRuleActionWithDependencies(
 {
     public Expression Expression => expression;
     public ActionTrigger Trigger { get; } = actionTrigger;
-    public bool IsAsync => true;
 
     public object?[] GetArguments(IActionContext actionContext)
     {

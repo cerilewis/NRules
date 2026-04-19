@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NRules.Diagnostics;
 using NRules.RuleModel;
 
@@ -35,7 +35,7 @@ internal class RuleInvocationRecorder : IRuleInvocationRecorder
     private readonly List<IMatch> _invocations = new();
     private bool _paused = false;
 
-    public RuleInvocationRecorder(ISession session)
+    public RuleInvocationRecorder(ISessionBase session)
     {
         session.Events.RuleFiredEvent += OnRuleFired;
     }

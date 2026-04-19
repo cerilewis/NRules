@@ -121,23 +121,23 @@ public interface IEventProvider
 internal interface IEventAggregator : IEventProvider
 {
     bool TraceEnabled { get; }
-    void RaiseActivationCreated(ISession session, Activation activation);
-    void RaiseActivationUpdated(ISession session, Activation activation);
-    void RaiseActivationDeleted(ISession session, Activation activation);
-    void RaiseRuleFiring(ISession session, Activation activation);
-    void RaiseRuleFired(ISession session, Activation activation);
-    void RaiseFactInserting(ISession session, Fact fact);
-    void RaiseFactInserted(ISession session, Fact fact);
-    void RaiseFactUpdating(ISession session, Fact fact);
-    void RaiseFactUpdated(ISession session, Fact fact);
-    void RaiseFactRetracting(ISession session, Fact fact);
-    void RaiseFactRetracted(ISession session, Fact fact);
-    void RaiseLhsExpressionFailed(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Tuple? tuple, Fact? fact, NodeInfo nodeInfo, ref bool isHandled);
-    void RaiseLhsExpressionEvaluated(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Tuple? tuple, Fact? fact, NodeInfo nodeInfo);
-    void RaiseAgendaExpressionFailed(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled);
-    void RaiseAgendaExpressionEvaluated(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Activation activation);
-    void RaiseRhsExpressionFailed(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled);
-    void RaiseRhsExpressionEvaluated(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation);
+    void RaiseActivationCreated(ISessionBase session, Activation activation);
+    void RaiseActivationUpdated(ISessionBase session, Activation activation);
+    void RaiseActivationDeleted(ISessionBase session, Activation activation);
+    void RaiseRuleFiring(ISessionBase session, Activation activation);
+    void RaiseRuleFired(ISessionBase session, Activation activation);
+    void RaiseFactInserting(ISessionBase session, Fact fact);
+    void RaiseFactInserted(ISessionBase session, Fact fact);
+    void RaiseFactUpdating(ISessionBase session, Fact fact);
+    void RaiseFactUpdated(ISessionBase session, Fact fact);
+    void RaiseFactRetracting(ISessionBase session, Fact fact);
+    void RaiseFactRetracted(ISessionBase session, Fact fact);
+    void RaiseLhsExpressionFailed(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Tuple? tuple, Fact? fact, NodeInfo nodeInfo, ref bool isHandled);
+    void RaiseLhsExpressionEvaluated(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Tuple? tuple, Fact? fact, NodeInfo nodeInfo);
+    void RaiseAgendaExpressionFailed(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled);
+    void RaiseAgendaExpressionEvaluated(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Activation activation);
+    void RaiseRhsExpressionFailed(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled);
+    void RaiseRhsExpressionEvaluated(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation);
 }
 
 internal class EventAggregator : IEventAggregator
@@ -217,7 +217,7 @@ internal class EventAggregator : IEventAggregator
 
     public bool TraceEnabled => _traceSubscriberCount > 0 || (_parent != null && _parent.TraceEnabled);
 
-    public void RaiseActivationCreated(ISession session, Activation activation)
+    public void RaiseActivationCreated(ISessionBase session, Activation activation)
     {
         var handler = ActivationCreatedEvent;
         if (handler != null)
@@ -228,7 +228,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseActivationCreated(session, activation);
     }
 
-    public void RaiseActivationUpdated(ISession session, Activation activation)
+    public void RaiseActivationUpdated(ISessionBase session, Activation activation)
     {
         var handler = ActivationUpdatedEvent;
         if (handler != null)
@@ -239,7 +239,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseActivationUpdated(session, activation);
     }
 
-    public void RaiseActivationDeleted(ISession session, Activation activation)
+    public void RaiseActivationDeleted(ISessionBase session, Activation activation)
     {
         var handler = ActivationDeletedEvent;
         if (handler != null)
@@ -250,7 +250,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseActivationDeleted(session, activation);
     }
 
-    public void RaiseRuleFiring(ISession session, Activation activation)
+    public void RaiseRuleFiring(ISessionBase session, Activation activation)
     {
         var handler = RuleFiringEvent;
         if (handler != null)
@@ -261,7 +261,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseRuleFiring(session, activation);
     }
 
-    public void RaiseRuleFired(ISession session, Activation activation)
+    public void RaiseRuleFired(ISessionBase session, Activation activation)
     {
         var handler = RuleFiredEvent;
         if (handler != null)
@@ -272,7 +272,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseRuleFired(session, activation);
     }
 
-    public void RaiseFactInserting(ISession session, Fact fact)
+    public void RaiseFactInserting(ISessionBase session, Fact fact)
     {
         var handler = FactInsertingEvent;
         if (handler != null)
@@ -283,7 +283,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseFactInserting(session, fact);
     }
 
-    public void RaiseFactInserted(ISession session, Fact fact)
+    public void RaiseFactInserted(ISessionBase session, Fact fact)
     {
         var handler = FactInsertedEvent;
         if (handler != null)
@@ -294,7 +294,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseFactInserted(session, fact);
     }
 
-    public void RaiseFactUpdating(ISession session, Fact fact)
+    public void RaiseFactUpdating(ISessionBase session, Fact fact)
     {
         var handler = FactUpdatingEvent;
         if (handler != null)
@@ -305,7 +305,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseFactUpdating(session, fact);
     }
 
-    public void RaiseFactUpdated(ISession session, Fact fact)
+    public void RaiseFactUpdated(ISessionBase session, Fact fact)
     {
         var handler = FactUpdatedEvent;
         if (handler != null)
@@ -316,7 +316,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseFactUpdated(session, fact);
     }
 
-    public void RaiseFactRetracting(ISession session, Fact fact)
+    public void RaiseFactRetracting(ISessionBase session, Fact fact)
     {
         var handler = FactRetractingEvent;
         if (handler != null)
@@ -327,7 +327,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseFactRetracting(session, fact);
     }
 
-    public void RaiseFactRetracted(ISession session, Fact fact)
+    public void RaiseFactRetracted(ISessionBase session, Fact fact)
     {
         var handler = FactRetractedEvent;
         if (handler != null)
@@ -338,7 +338,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseFactRetracted(session, fact);
     }
 
-    public void RaiseLhsExpressionEvaluated(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Tuple? tuple, Fact? fact, NodeInfo nodeInfo)
+    public void RaiseLhsExpressionEvaluated(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Tuple? tuple, Fact? fact, NodeInfo nodeInfo)
     {
         var handler = LhsExpressionEvaluatedEvent;
         if (handler != null)
@@ -350,7 +350,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseLhsExpressionEvaluated(session, exception, expression, argumentMap, result, tuple, fact, nodeInfo);
     }
 
-    public void RaiseLhsExpressionFailed(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Tuple? tuple, Fact? fact, NodeInfo nodeInfo, ref bool isHandled)
+    public void RaiseLhsExpressionFailed(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Tuple? tuple, Fact? fact, NodeInfo nodeInfo, ref bool isHandled)
     {
         var handler = LhsExpressionFailedEvent;
         if (handler != null)
@@ -363,7 +363,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseLhsExpressionFailed(session, exception, expression, argumentMap, tuple, fact, nodeInfo, ref isHandled);
     }
 
-    public void RaiseAgendaExpressionEvaluated(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Activation activation)
+    public void RaiseAgendaExpressionEvaluated(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, object? result, Activation activation)
     {
         var handler = AgendaExpressionEvaluatedEvent;
         if (handler != null)
@@ -375,7 +375,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseAgendaExpressionEvaluated(session, exception, expression, argumentMap, result, activation);
     }
 
-    public void RaiseAgendaExpressionFailed(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled)
+    public void RaiseAgendaExpressionFailed(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled)
     {
         var handler = AgendaExpressionFailedEvent;
         if (handler != null)
@@ -388,7 +388,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseAgendaExpressionFailed(session, exception, expression, argumentMap, activation, ref isHandled);
     }
     
-    public void RaiseRhsExpressionEvaluated(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation)
+    public void RaiseRhsExpressionEvaluated(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation)
     {
         var handler = RhsExpressionEvaluatedEvent;
         if (handler != null)
@@ -400,7 +400,7 @@ internal class EventAggregator : IEventAggregator
         _parent?.RaiseRhsExpressionEvaluated(session, exception, expression, argumentMap, activation);
     }
 
-    public void RaiseRhsExpressionFailed(ISession session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled)
+    public void RaiseRhsExpressionFailed(ISessionBase session, Exception? exception, Expression expression, IArgumentMap argumentMap, Activation activation, ref bool isHandled)
     {
         var handler = RhsExpressionFailedEvent;
         if (handler != null)

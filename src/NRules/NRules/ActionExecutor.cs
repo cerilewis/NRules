@@ -9,14 +9,18 @@ namespace NRules;
 internal interface IActionExecutor
 {
     void Execute(IExecutionContext executionContext, IActionContext actionContext);
+}
+
+internal interface IAsyncActionExecutor
+{
     Task ExecuteAsync(IExecutionContext executionContext, IActionContext actionContext);
 }
 
-internal class ActionExecutor : IActionExecutor
+internal class ActionExecutor : IActionExecutor, IAsyncActionExecutor
 {
     public void Execute(IExecutionContext executionContext, IActionContext actionContext)
     {
-        ISession session = executionContext.Session;
+        ISessionBase session = executionContext.Session;
         Activation activation = actionContext.Activation;
 
         var invocations = CreateInvocations(executionContext, actionContext);
@@ -47,13 +51,16 @@ internal class ActionExecutor : IActionExecutor
 
     public async Task ExecuteAsync(IExecutionContext executionContext, IActionContext actionContext)
     {
-        ISession session = executionContext.Session;
+        ISessionBase session = executionContext.Session;
         Activation activation = actionContext.Activation;
 
         var invocations = CreateInvocations(executionContext, actionContext);
 
         executionContext.EventAggregator.RaiseRuleFiring(session, activation);
-        if (session.AsyncActionInterceptor is {} asyncInterceptor)
+
+        // For async path, check if the session is an async session to get the async interceptor
+        if (executionContext.Session is IAsyncSessionInternal asyncSession &&
+            asyncSession.AsyncActionInterceptor is {} asyncInterceptor)
         {
             await asyncInterceptor.InterceptAsync(actionContext, invocations);
         }

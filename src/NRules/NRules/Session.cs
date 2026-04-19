@@ -11,9 +11,8 @@ using Tuple = System.Tuple;
 namespace NRules;
 
 /// <summary>
-/// Represents a rules engine session. Created by <see cref="ISessionFactory"/>.
-/// Each session has its own working memory, and exposes operations that 
-/// manipulate facts in it, as well as fire matching rules.
+/// Base interface for rules engine sessions, providing common operations for fact manipulation,
+/// querying, and configuration. This interface is shared by both synchronous and asynchronous sessions.
 /// </summary>
 /// <exception cref="RuleLhsExpressionEvaluationException">Error while evaluating any of the rules' left-hand side expressons.
 /// This exception can also be observed as an event <see cref="IEventProvider.LhsExpressionEvaluatedEvent"/>.</exception>
@@ -21,9 +20,10 @@ namespace NRules;
 /// This exception can also be observed as an event <see cref="IEventProvider.AgendaExpressionFailedEvent"/>.</exception>
 /// <exception cref="RuleRhsExpressionEvaluationException">Error while evaluating any of the rules' right-hand side expressions.
 /// This exception can also be observed as an event <see cref="IEventProvider.RhsExpressionFailedEvent"/>.</exception>
-/// <seealso cref="ISessionFactory"/>
+/// <seealso cref="ISession"/>
+/// <seealso cref="IAsyncSession"/>
 /// <threadsafety instance="false" />
-public interface ISession : ISessionSchemaProvider
+public interface ISessionBase : ISessionSchemaProvider
 {
     /// <summary>
     /// Controls how the engine propagates linked facts from rules that insert/update/retract linked facts in their actions.
@@ -60,12 +60,6 @@ public interface ISession : ISessionSchemaProvider
     /// If provided, invocation of rule actions is delegated to the interceptor.
     /// </summary>
     IActionInterceptor? ActionInterceptor { get; set; }
-    
-    /// <summary>
-    /// Async action interceptor for the current rules session.
-    /// If provided, invocation of async rule actions is delegated to the interceptor.
-    /// </summary>
-    IAsyncActionInterceptor? AsyncActionInterceptor { get; set; }
 
     /// <summary>
     /// Inserts new facts to the rules engine memory.
@@ -233,6 +227,24 @@ public interface ISession : ISessionSchemaProvider
     IEnumerable<ILinkedFactSet> PropagateLinked();
 
     /// <summary>
+    /// Creates a LINQ query to retrieve facts of a given type from the rules engine's memory.
+    /// </summary>
+    /// <typeparam name="TFact">Type of facts to query. Use <see cref="object"/> to query all facts.</typeparam>
+    /// <returns>Queryable working memory of the rules engine.</returns>
+    IQueryable<TFact> Query<TFact>();
+}
+
+/// <summary>
+/// Represents a synchronous rules engine session. Created by <see cref="ISessionFactory"/>.
+/// Each session has its own working memory, and exposes operations that 
+/// manipulate facts in it, as well as fire matching rules synchronously.
+/// </summary>
+/// <seealso cref="ISessionFactory"/>
+/// <seealso cref="ISessionBase"/>
+/// <threadsafety instance="false" />
+public interface ISession : ISessionBase
+{
+    /// <summary>
     /// Starts rules execution cycle.
     /// This method blocks until there are no more rules to fire.
     /// </summary>
@@ -263,6 +275,23 @@ public interface ISession : ISessionSchemaProvider
     /// <param name="cancellationToken">Enables cooperative cancellation of the rules execution cycle.</param>
     /// <returns>Number of rules that fired.</returns>
     int Fire(int maxRulesNumber, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// Represents an asynchronous rules engine session. Created by <see cref="IAsyncSessionFactory"/>.
+/// Each session has its own working memory, and exposes operations that 
+/// manipulate facts in it, as well as fire matching rules asynchronously.
+/// </summary>
+/// <seealso cref="IAsyncSessionFactory"/>
+/// <seealso cref="ISessionBase"/>
+/// <threadsafety instance="false" />
+public interface IAsyncSession : ISessionBase
+{
+    /// <summary>
+    /// Async action interceptor for the current rules session.
+    /// If provided, invocation of async rule actions is delegated to the interceptor.
+    /// </summary>
+    IAsyncActionInterceptor? AsyncActionInterceptor { get; set; }
 
     /// <summary>
     /// Starts rules execution cycle asynchronously.
@@ -296,16 +325,9 @@ public interface ISession : ISessionSchemaProvider
     /// <param name="cancellationToken">Enables cooperative cancellation of the rules execution cycle.</param>
     /// <returns>Number of rules that fired.</returns>
     Task<int> FireAsync(int maxRulesNumber, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Creates a LINQ query to retrieve facts of a given type from the rules engine's memory.
-    /// </summary>
-    /// <typeparam name="TFact">Type of facts to query. Use <see cref="object"/> to query all facts.</typeparam>
-    /// <returns>Queryable working memory of the rules engine.</returns>
-    IQueryable<TFact> Query<TFact>();
 }
 
-internal interface ISessionInternal : ISession
+internal interface ISessionInternalBase : ISessionBase
 {
     new IAgendaInternal Agenda { get; }
 
@@ -317,7 +339,15 @@ internal interface ISessionInternal : ISession
     void QueueRetractLinked(Activation activation);
 }
 
-internal sealed class Session : ISessionInternal
+internal interface ISessionInternal : ISessionInternalBase, ISession
+{
+}
+
+internal interface IAsyncSessionInternal : ISessionInternalBase, IAsyncSession
+{
+}
+
+internal class SessionBase : ISessionInternalBase
 {
     private static readonly ILinkedFactSet[] EmptyLinkedFactResult = Array.Empty<ILinkedFactSet>();
 
@@ -326,17 +356,15 @@ internal sealed class Session : ISessionInternal
     private readonly IWorkingMemory _workingMemory;
     private readonly IEventAggregator _eventAggregator;
     private readonly IMetricsAggregator _metricsAggregator;
-    private readonly IActionExecutor _actionExecutor;
-    private readonly IExecutionContext _executionContext;
+    protected readonly IExecutionContext _executionContext;
     private readonly LinkedList<LinkedFactSet> _linkedFacts = new();
 
-    internal Session(
+    internal SessionBase(
         INetwork network,
         IAgendaInternal agenda,
         IWorkingMemory workingMemory,
         IEventAggregator eventAggregator,
         IMetricsAggregator metricsAggregator,
-        IActionExecutor actionExecutor,
         IIdGenerator idGenerator,
         IDependencyResolver dependencyResolver,
         IActionInterceptor? actionInterceptor)
@@ -346,8 +374,8 @@ internal sealed class Session : ISessionInternal
         _agenda = agenda;
         _eventAggregator = eventAggregator;
         _metricsAggregator = metricsAggregator;
-        _actionExecutor = actionExecutor;
-        _executionContext = new ExecutionContext(this, _workingMemory, _agenda, _eventAggregator, _metricsAggregator, idGenerator);
+        _executionContext = new ExecutionContext(this, _workingMemory, _agenda, _eventAggregator, _metricsAggregator,
+            idGenerator);
         DependencyResolver = dependencyResolver;
         ActionInterceptor = actionInterceptor;
         AutoPropagateLinkedFacts = true;
@@ -359,9 +387,10 @@ internal sealed class Session : ISessionInternal
     public IMetricsProvider Metrics => _metricsAggregator;
     public IDependencyResolver DependencyResolver { get; set; }
     public IActionInterceptor? ActionInterceptor { get; set; }
-    public IAsyncActionInterceptor? AsyncActionInterceptor { get; set; }
 
-    IAgendaInternal ISessionInternal.Agenda => _agenda;
+    IAgendaInternal ISessionInternalBase.Agenda => _agenda;
+
+    protected IAgendaInternal AgendaInternal => _agenda;
 
     internal void Activate()
     {
@@ -695,6 +724,45 @@ internal sealed class Session : ISessionInternal
         QueueRetractLinked(activation, keyedFacts);
     }
 
+    public IQueryable<TFact> Query<TFact>()
+    {
+        return _workingMemory.Facts.Select(x => x.Object).OfType<TFact>().AsQueryable();
+    }
+
+    private static void UpdateFact(Fact fact, object factObject)
+    {
+        if (ReferenceEquals(fact.RawObject, factObject)) return;
+        fact.RawObject = factObject;
+    }
+
+    ReteGraph ISessionSchemaProvider.GetSchema() => _network.GetSchema();
+}
+
+internal sealed class Session : SessionBase, ISessionInternal
+{
+    private readonly IActionExecutor _actionExecutor;
+
+    internal Session(
+        INetwork network,
+        IAgendaInternal agenda,
+        IWorkingMemory workingMemory,
+        IEventAggregator eventAggregator,
+        IMetricsAggregator metricsAggregator,
+        IActionExecutor actionExecutor,
+        IIdGenerator idGenerator,
+        IDependencyResolver dependencyResolver,
+        IActionInterceptor? actionInterceptor) : base(network,
+        agenda,
+        workingMemory,
+        eventAggregator,
+        metricsAggregator,
+        idGenerator,
+        dependencyResolver,
+        actionInterceptor)
+    {
+        _actionExecutor = actionExecutor;
+    }
+
     public int Fire()
     {
         return Fire(CancellationToken.None);
@@ -713,9 +781,9 @@ internal sealed class Session : ISessionInternal
     public int Fire(int maxRulesNumber, CancellationToken cancellationToken)
     {
         int ruleFiredCount = 0;
-        while (!_agenda.IsEmpty && ruleFiredCount < maxRulesNumber)
+        while (!AgendaInternal.IsEmpty && ruleFiredCount < maxRulesNumber)
         {
-            Activation activation = _agenda.Pop();
+            Activation activation = AgendaInternal.Pop();
             IActionContext actionContext = new ActionContext(this, activation, cancellationToken);
 
             try
@@ -732,6 +800,36 @@ internal sealed class Session : ISessionInternal
         }
         return ruleFiredCount;
     }
+}
+
+internal sealed class AsyncSession : SessionBase, IAsyncSessionInternal
+{
+    private readonly IAsyncActionExecutor _actionExecutor;
+
+    internal AsyncSession(
+        INetwork network,
+        IAgendaInternal agenda,
+        IWorkingMemory workingMemory,
+        IEventAggregator eventAggregator,
+        IMetricsAggregator metricsAggregator,
+        IAsyncActionExecutor actionExecutor,
+        IIdGenerator idGenerator,
+        IDependencyResolver dependencyResolver,
+        IActionInterceptor? actionInterceptor,
+        IAsyncActionInterceptor? asyncActionInterceptor) : base(network,
+        agenda,
+        workingMemory,
+        eventAggregator,
+        metricsAggregator,
+        idGenerator,
+        dependencyResolver,
+        actionInterceptor)
+    {
+        _actionExecutor = actionExecutor;
+        AsyncActionInterceptor = asyncActionInterceptor;
+    }
+
+    public IAsyncActionInterceptor? AsyncActionInterceptor { get; set; }
 
     public Task<int> FireAsync()
     {
@@ -751,9 +849,9 @@ internal sealed class Session : ISessionInternal
     public async Task<int> FireAsync(int maxRulesNumber, CancellationToken cancellationToken)
     {
         int ruleFiredCount = 0;
-        while (!_agenda.IsEmpty && ruleFiredCount < maxRulesNumber)
+        while (!AgendaInternal.IsEmpty && ruleFiredCount < maxRulesNumber)
         {
-            Activation activation = _agenda.Pop();
+            Activation activation = AgendaInternal.Pop();
             IActionContext actionContext = new ActionContext(this, activation, cancellationToken);
 
             try
@@ -770,17 +868,4 @@ internal sealed class Session : ISessionInternal
         }
         return ruleFiredCount;
     }
-
-    public IQueryable<TFact> Query<TFact>()
-    {
-        return _workingMemory.Facts.Select(x => x.Object).OfType<TFact>().AsQueryable();
-    }
-
-    private static void UpdateFact(Fact fact, object factObject)
-    {
-        if (ReferenceEquals(fact.RawObject, factObject)) return;
-        fact.RawObject = factObject;
-    }
-
-    ReteGraph ISessionSchemaProvider.GetSchema() => _network.GetSchema();
 }
