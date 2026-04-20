@@ -65,7 +65,7 @@ public class RuleCompiler
     }
 
     /// <summary>
-    /// Compiles a collection of rules into a session factory.
+    /// Compiles a collection of rules into a synchronous session factory.
     /// </summary>
     /// <param name="ruleDefinitions">Rules to compile.</param>
     /// <returns>Session factory.</returns>
@@ -77,7 +77,7 @@ public class RuleCompiler
     }
 
     /// <summary>
-    /// Compiles a collection of rules into a session factory.
+    /// Compiles a collection of rules into a synchronous session factory.
     /// </summary>
     /// <param name="ruleDefinitions">Rules to compile.</param>
     /// <param name="cancellationToken">Enables cooperative cancellation of the rules compilation.</param>
@@ -85,6 +85,89 @@ public class RuleCompiler
     /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
     /// <seealso cref="IRuleRepository"/>
     public ISessionFactory Compile(IEnumerable<IRuleDefinition> ruleDefinitions, CancellationToken cancellationToken)
+    {
+        var (network, compiledRules, factIdentityComparer) = CompileRules(ruleDefinitions, cancellationToken);
+        var factory = new SessionFactory(network, compiledRules, factIdentityComparer);
+        return factory;
+    }
+
+    /// <summary>
+    /// Compiles rules from rule sets into a synchronous session factory.
+    /// </summary>
+    /// <param name="ruleSets">Rule sets to compile.</param>
+    /// <returns>Session factory.</returns>
+    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
+    public ISessionFactory Compile(IEnumerable<IRuleSet> ruleSets)
+    {
+        return Compile(ruleSets, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Compiles rules from rule sets into a synchronous session factory.
+    /// </summary>
+    /// <param name="ruleSets">Rule sets to compile.</param>
+    /// <param name="cancellationToken">Enables cooperative cancellation of the rules compilation.</param>
+    /// <returns>Session factory.</returns>
+    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
+    public ISessionFactory Compile(IEnumerable<IRuleSet> ruleSets, CancellationToken cancellationToken)
+    {
+        var rules = ruleSets.SelectMany(x => x.Rules);
+        return Compile(rules, cancellationToken);
+    }
+
+    /// <summary>
+    /// Compiles a collection of rules into an asynchronous session factory.
+    /// </summary>
+    /// <param name="ruleDefinitions">Rules to compile.</param>
+    /// <returns>Async session factory.</returns>
+    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
+    /// <seealso cref="IRuleRepository"/>
+    public IAsyncSessionFactory CompileAsync(IEnumerable<IRuleDefinition> ruleDefinitions)
+    {
+        return CompileAsync(ruleDefinitions, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Compiles a collection of rules into an asynchronous session factory.
+    /// </summary>
+    /// <param name="ruleDefinitions">Rules to compile.</param>
+    /// <param name="cancellationToken">Enables cooperative cancellation of the rules compilation.</param>
+    /// <returns>Async session factory.</returns>
+    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
+    /// <seealso cref="IRuleRepository"/>
+    public IAsyncSessionFactory CompileAsync(IEnumerable<IRuleDefinition> ruleDefinitions, CancellationToken cancellationToken)
+    {
+        var (network, compiledRules, factIdentityComparer) = CompileRules(ruleDefinitions, cancellationToken);
+        var factory = new AsyncSessionFactory(network, compiledRules, factIdentityComparer);
+        return factory;
+    }
+
+    /// <summary>
+    /// Compiles rules from rule sets into an asynchronous session factory.
+    /// </summary>
+    /// <param name="ruleSets">Rule sets to compile.</param>
+    /// <returns>Async session factory.</returns>
+    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
+    public IAsyncSessionFactory CompileAsync(IEnumerable<IRuleSet> ruleSets)
+    {
+        return CompileAsync(ruleSets, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Compiles rules from rule sets into an asynchronous session factory.
+    /// </summary>
+    /// <param name="ruleSets">Rule sets to compile.</param>
+    /// <param name="cancellationToken">Enables cooperative cancellation of the rules compilation.</param>
+    /// <returns>Async session factory.</returns>
+    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
+    public IAsyncSessionFactory CompileAsync(IEnumerable<IRuleSet> ruleSets, CancellationToken cancellationToken)
+    {
+        var rules = ruleSets.SelectMany(x => x.Rules);
+        return CompileAsync(rules, cancellationToken);
+    }
+
+    private (INetwork network, List<ICompiledRule> compiledRules, IFactIdentityComparer factIdentityComparer)
+        CompileRules(IEnumerable<IRuleDefinition> ruleDefinitions, CancellationToken cancellationToken)
     {
         IReteBuilder reteBuilder = new ReteBuilder(_options, _aggregatorRegistry, _ruleExpressionCompiler);
         var compiledRules = new List<ICompiledRule>();
@@ -107,32 +190,7 @@ public class RuleCompiler
         var factIdentityComparer = new FactIdentityComparer(
             FactIdentityComparerRegistry.DefaultFactIdentityComparer,
             FactIdentityComparerRegistry.GetComparers());
-        var factory = new SessionFactory(network, compiledRules, factIdentityComparer);
-        return factory;
-    }
-
-    /// <summary>
-    /// Compiles rules from rule sets into a session factory.
-    /// </summary>
-    /// <param name="ruleSets">Rule sets to compile.</param>
-    /// <returns>Session factory.</returns>
-    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
-    public ISessionFactory Compile(IEnumerable<IRuleSet> ruleSets)
-    {
-        return Compile(ruleSets, CancellationToken.None);
-    }
-
-    /// <summary>
-    /// Compiles rules from rule sets into a session factory.
-    /// </summary>
-    /// <param name="ruleSets">Rule sets to compile.</param>
-    /// <param name="cancellationToken">Enables cooperative cancellation of the rules compilation.</param>
-    /// <returns>Session factory.</returns>
-    /// <exception cref="RuleCompilationException">Any fatal error during rules compilation.</exception>
-    public ISessionFactory Compile(IEnumerable<IRuleSet> ruleSets, CancellationToken cancellationToken)
-    {
-        var rules = ruleSets.SelectMany(x => x.Rules);
-        return Compile(rules, cancellationToken);
+        return (network, compiledRules, factIdentityComparer);
     }
 
     private IReadOnlyCollection<ICompiledRule> CompileRule(IReteBuilder reteBuilder, IRuleDefinition ruleDefinition)

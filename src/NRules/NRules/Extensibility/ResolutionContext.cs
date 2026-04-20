@@ -10,7 +10,7 @@ public interface IResolutionContext
     /// <summary>
     /// Rules engine session that requested dependency resolution.
     /// </summary>
-    ISession Session { get; }
+    ISessionBase Session { get; }
 
     /// <summary>
     /// Rule that requested dependency resolution.
@@ -18,8 +18,8 @@ public interface IResolutionContext
     IRuleDefinition Rule { get; }
 }
 
-internal class ResolutionContext(ISession session, IRuleDefinition rule) : IResolutionContext
+internal class ResolutionContext(ISessionBase session, IRuleDefinition rule) : IResolutionContext
 {
-    public ISession Session { get; } = session;
+    public ISessionBase Session { get; } = session;
     public IRuleDefinition Rule { get; } = rule;
 }

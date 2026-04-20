@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NRules.RuleModel;
 
 namespace NRules.Extensibility;
@@ -18,9 +19,16 @@ public interface IActionInvocation
     IReadOnlyList<object?> Arguments { get; }
 
     /// <summary>
-    /// Invokes the action.
+    /// Invokes the action synchronously.
+    /// For async actions, this blocks until the action completes.
     /// </summary>
     void Invoke();
+
+    /// <summary>
+    /// Invokes the action asynchronously.
+    /// For sync actions, this completes synchronously and returns a completed task.
+    /// </summary>
+    Task InvokeAsync();
 
     /// <summary>
     /// Activation events that trigger this action.

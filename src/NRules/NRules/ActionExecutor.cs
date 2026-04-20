@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NRules.RuleModel;
 using NRules.Utilities;
 
@@ -10,11 +11,16 @@ internal interface IActionExecutor
     void Execute(IExecutionContext executionContext, IActionContext actionContext);
 }
 
-internal class ActionExecutor : IActionExecutor
+internal interface IAsyncActionExecutor
+{
+    Task ExecuteAsync(IExecutionContext executionContext, IActionContext actionContext);
+}
+
+internal class ActionExecutor : IActionExecutor, IAsyncActionExecutor
 {
     public void Execute(IExecutionContext executionContext, IActionContext actionContext)
     {
-        ISession session = executionContext.Session;
+        ISessionBase session = executionContext.Session;
         Activation activation = actionContext.Activation;
 
         var invocations = CreateInvocations(executionContext, actionContext);
@@ -32,6 +38,43 @@ internal class ActionExecutor : IActionExecutor
                 try
                 {
                     invocation.Invoke();
+                }
+                catch (Exception e)
+                {
+                    throw new RuleRhsExpressionEvaluationException("Failed to evaluate rule action",
+                        actionContext.Rule.Name, invocation.Expression.ToString(), e);
+                }
+            }
+        }
+        executionContext.EventAggregator.RaiseRuleFired(session, activation);
+    }
+
+    public async Task ExecuteAsync(IExecutionContext executionContext, IActionContext actionContext)
+    {
+        ISessionBase session = executionContext.Session;
+        Activation activation = actionContext.Activation;
+
+        var invocations = CreateInvocations(executionContext, actionContext);
+
+        executionContext.EventAggregator.RaiseRuleFiring(session, activation);
+
+        // For async path, check if the session is an async session to get the async interceptor
+        if (executionContext.Session is IAsyncSessionInternal asyncSession &&
+            asyncSession.AsyncActionInterceptor is {} asyncInterceptor)
+        {
+            await asyncInterceptor.InterceptAsync(actionContext, invocations);
+        }
+        else if (session.ActionInterceptor is {} interceptor)
+        {
+            interceptor.Intercept(actionContext, invocations);
+        }
+        else
+        {
+            foreach (var invocation in invocations)
+            {
+                try
+                {
+                    await invocation.InvokeAsync();
                 }
                 catch (Exception e)
                 {

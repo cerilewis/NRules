@@ -46,4 +46,31 @@ public static class RuleRepositoryExtensions
         ISessionFactory factory = compiler.Compile(repository.GetRules(), cancellationToken);
         return factory;
     }
+
+    /// <summary>
+    /// Compiles all rules in the repository into an async session factory.
+    /// Use <see cref="RuleCompiler"/> explicitly if only need to compile a subset of rules.
+    /// </summary>
+    /// <param name="repository">Rule repository.</param>
+    /// <returns>Async session factory.</returns>
+    /// <seealso cref="RuleCompiler"/>
+    public static IAsyncSessionFactory CompileAsync(this IRuleRepository repository)
+    {
+        return repository.CompileAsync(CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Compiles all rules in the repository into an async session factory.
+    /// Use <see cref="RuleCompiler"/> explicitly if only need to compile a subset of rules.
+    /// </summary>
+    /// <param name="repository">Rule repository.</param>
+    /// <param name="cancellationToken">Enables cooperative cancellation of the rules compilation.</param>
+    /// <returns>Async session factory.</returns>
+    /// <seealso cref="RuleCompiler"/>
+    public static IAsyncSessionFactory CompileAsync(this IRuleRepository repository, CancellationToken cancellationToken)
+    {
+        var compiler = new RuleCompiler();
+        IAsyncSessionFactory factory = compiler.CompileAsync(repository.GetRules(), cancellationToken);
+        return factory;
+    }
 }

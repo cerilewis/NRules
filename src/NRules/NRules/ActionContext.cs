@@ -13,7 +13,7 @@ internal interface IActionContext : IContext
     bool IsHalted { get; }
 }
 
-internal class ActionContext(ISessionInternal session, Activation activation, CancellationToken cancellationToken)
+internal class ActionContext(ISessionInternalBase session, Activation activation, CancellationToken cancellationToken)
     : IActionContext
 {
     public IRuleDefinition Rule => CompiledRule.Definition;
